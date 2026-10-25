@@ -133,11 +133,11 @@ async function login(pwArg) {
     if (!d.ok) {
       $('#loginMsg').style.color = 'var(--warn)';
       $('#loginMsg').textContent = '비밀번호가 틀렸습니다.';
-      try { sessionStorage.removeItem('vpw'); } catch (e) {}
+      try { localStorage.removeItem('vpw'); } catch (e) {}
       return;
     }
     viewPw = pw;
-    try { sessionStorage.setItem('vpw', pw); } catch (e) {}
+    try { localStorage.setItem('vpw', pw); } catch (e) {}
     $('#login').hidden = true;
     $('#app').hidden = false;
     apply(d);
@@ -308,7 +308,7 @@ document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && viewPw) load(); });
 
-try { const s = sessionStorage.getItem('vpw'); if (s) login(s); } catch (e) {}
+try { const s = localStorage.getItem('vpw'); if (s) login(s); } catch (e) {}
 </script>
 </body>
 </html>
