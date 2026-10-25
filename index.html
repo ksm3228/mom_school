@@ -161,6 +161,7 @@ async function load(force) {
 }
 
 function apply(d) {
+  if ((!d.rows || !d.rows.length) && rows.length) return;
   rows = d.rows || [];
   render();
   $('#status').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · ' + (REFRESH_MS / 1000) + '초마다 자동 갱신';
