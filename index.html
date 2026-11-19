@@ -41,6 +41,10 @@ td.x{white-space:normal;min-width:170px;max-width:340px;font-size:14px}
 .qa small{display:block;color:var(--mute);font-size:12px;margin-bottom:2px}
 .mbox.wide{max-width:560px}
 .mbox select{width:100%;padding:8px;font-size:14px;margin:6px 0;border:1px solid var(--line);border-radius:8px}
+.evbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.evbar select{padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:8px;max-width:100%}
+.evchip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;text-align:left}
+.evchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .sgrp{margin:12px 0 4px;font-size:12px;color:var(--mute);font-weight:600}
 .srow{display:block;width:100%;text-align:left;margin-bottom:6px;padding:10px 12px;font-size:14px}
 .acct{position:relative}
@@ -178,7 +182,7 @@ body.editing .editcol{display:table-cell}
   <div class="top">
   <header>
     <div>
-      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.12</small></h1>
+      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.13</small></h1>
       <div id="status">불러오는 중...</div>
     </div>
     <div class="actions">
@@ -211,6 +215,7 @@ body.editing .editcol{display:table-cell}
     <button class="chip" data-f="nosms">문자 미연락</button>
     <button class="chip" data-f="nopaid">미입금</button>
   </div>
+  <div id="evBar" hidden></div>
   </div>
 
   <div class="wrap">
@@ -332,7 +337,7 @@ function switchTab(id) {
   if (id === curTab) return;
   curTab = id;
   try { localStorage.setItem('tab', id); } catch (e) {}
-  editingRow = null;
+  editingRow = null; evVal = '';
   const c = loadCache(id);
   rows = c ? c.rows : []; stale = !!c; loading = true;
   xcols = c ? (c.cols || []) : []; miss = c ? (c.miss || []) : [];
@@ -396,11 +401,48 @@ function stats() {
     card('입금액 / 예정액', won(got), `총 ${won(total)} · 남은 ${won(total - got)}`);
 }
 
+// 분류 기준 열 (예: 참여하고자 하는 이벤트) — 값별로 나눠 보기
+let evVal = '';
+function getEvCol() {
+  let v = null;
+  try { v = localStorage.getItem('ev_' + curTab); } catch (e) {}
+  if (v === null) { const a = xcols.find(h => /이벤트|구분|분류|유형|종류/.test(h) && !isTs(h)); v = a || ''; }
+  return xcols.includes(v) ? v : '';
+}
+const evOf = r => { const i = xcols.indexOf(getEvCol()); return i < 0 ? '' : String((r.x || [])[i] || '').trim(); };
+function renderEv() {
+  const bar = $('#evBar');
+  const cols = xcols.filter(h => !isTs(h));
+  if (!cols.length) { bar.hidden = true; return; }
+  const cur = getEvCol();
+  bar.hidden = false; bar.className = 'evbar';
+  let h = `<select id="evSel"><option value="">분류 기준: 사용 안 함</option>${cols.map(c => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(c.length > 28 ? c.slice(0, 28) + '…' : c)}</option>`).join('')}</select>`;
+  if (cur) {
+    const cnt = {};
+    rows.forEach(x => { const v = evOf(x); if (v) cnt[v] = (cnt[v] || 0) + 1; });
+    const vals = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
+    if (evVal && !cnt[evVal]) evVal = '';
+    h += `<button class="evchip ${evVal ? '' : 'on'}" data-v="">전체 ${rows.length}</button>` + vals.map(v => `<button class="evchip ${evVal === v ? 'on' : ''}" data-v="${esc(v)}">${esc(v)} ${cnt[v]}</button>`).join('');
+  } else evVal = '';
+  bar.innerHTML = h;
+}
+$('#evBar').addEventListener('change', e => {
+  if (e.target.id !== 'evSel') return;
+  try { localStorage.setItem('ev_' + curTab, e.target.value); } catch (x) {}
+  evVal = ''; render();
+});
+$('#evBar').addEventListener('click', e => {
+  const b = e.target.closest('.evchip');
+  if (!b) return;
+  evVal = b.dataset.v; if (editingRow === null) render();
+});
+
 function filtered() {
   const q = $('#q').value.trim();
   let list = rows.filter(r => !q || [r.name, r.phone, r.church, r.role, r.note, ...(r.x || [])].join(' ').includes(q));
   if (filter === 'nosms' && isSms()) list = list.filter(r => !r.sms);
   if (filter === 'nopaid' && isPay()) list = list.filter(r => !r.paid);
+  if (evVal && getEvCol()) list = list.filter(r => evOf(r) === evVal);
   return list;
 }
 
@@ -457,6 +499,7 @@ function render() {
       <td class="editcol"><button class="sbtn edit">수정</button></td>
     </tr>`;
   }).join('') || `<tr><td colspan="${ncols}" class="empty">${loading ? '불러오는 중...' : curObj().linked ? '표시할 명단이 없습니다' : '연동된 스프레드시트가 없습니다.<br>[편집] → [시트 연동]에서 구글 시트 주소를 입력하세요.'}</td></tr>`;
+  renderEv();
   stats();
 }
 
@@ -603,13 +646,14 @@ $('#dlGo').onclick = () => {
 
 async function doShare(mode, pick) {
   const list = filtered();
-  const label = { all: '전체', nosms: '문자 미연락', nopaid: '미입금' }[filter];
+  const label = { all: '전체', nosms: '문자 미연락', nopaid: '미입금' }[filter] + (evVal ? ' · ' + evVal : '');
   const pay = isPay();
   const paidN = rows.filter(r => r.paid).length;
   const tn = curObj().name || '신청자';
   const allSx = shownX();
   const sx = pick ? allSx.filter(c => pick.includes(c.i)) : allSx;
-  const sub = mode !== 'roster' && sx.length < allSx.length ? '_' + sx.map(c => c.h).join('+').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 30) : '';
+  const fn = t => t.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 30);
+  const sub = (evVal ? '_' + fn(evVal) : '') + (mode !== 'roster' && sx.length < allSx.length ? '_' + fn(sx.map(c => c.h).join('+')) : '');
   const rosterLine = (r, i) => (pay ? (r.paid ? '✅ ' : '⬜ ') : '') + [i + 1, r.name, r.age, r.role, r.phone, r.church].filter(Boolean).join(' ');
   const qLines = r => sx.map(c => [c.h, qv(r, c.i)]).filter(a => a[1]).map(a => `   Q. ${a[0]}\n   A. ${a[1]}`);
   let text, suffix;
