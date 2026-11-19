@@ -182,7 +182,7 @@ body.editing .editcol{display:table-cell}
   <div class="top">
   <header>
     <div>
-      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.14</small></h1>
+      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.15</small></h1>
       <div id="status">불러오는 중...</div>
     </div>
     <div class="actions">
@@ -663,13 +663,13 @@ async function doShare(mode, pick) {
   const fn = t => t.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 30);
   const sub = (evVal ? '_' + fn(evVal) : '') + (mode !== 'roster' && sx.length < allSx.length ? '_' + fn(sx.map(c => c.h).join('+')) : '');
   const rosterLine = (r, i) => (pay ? (r.paid ? '✅ ' : '⬜ ') : '') + [i + 1, r.name, r.age, r.role, r.phone, r.church].filter(Boolean).join(' ');
-  const qLines = r => sx.map(c => [c.h, qv(r, c.i)]).filter(a => a[1]).map(a => `   Q. ${a[0]}\n   A. ${a[1]}`);
+  const qLines = r => sx.map(c => [c.h, qv(r, c.i)]).filter(a => a[1]).map(a => sx.length === 1 ? `   A. ${a[1]}` : `   Q. ${a[0]}\n   A. ${a[1]}`);   // 질문이 하나면 Q 줄 생략
   let text, suffix;
   if (mode === 'q') {
     suffix = '사전질문';
     const ql = list.map(r => ({ r, q: qLines(r) })).filter(a => a.q.length);
     if (!ql.length) { alert('내용이 있는 사전질문이 없습니다.'); return; }
-    text = `${tn} 사전질문 (${label} ${ql.length}명)\n\n` + ql.map((a, i) => `${i + 1}. ${a.r.name}\n` + a.q.join('\n')).join('\n\n');
+    text = `${tn} 사전질문 (${label} ${ql.length}명)\n\n` + ql.map((a, i) => `${i + 1} ${a.r.name}\n` + a.q.join('\n')).join('\n\n');
   } else {
     suffix = mode === 'both' ? '명단_사전질문' : '명단';
     text = `${tn} 명단 (${label} ${list.length}명)\n` +
