@@ -182,7 +182,7 @@ body.editing .editcol{display:table-cell}
   <div class="top">
   <header>
     <div>
-      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.13</small></h1>
+      <h1><span id="appTitle">신청자 명단</span><span id="roleBadge" class="badge"></span> <small style="font-size:11px;color:var(--mute);font-weight:400">v2.14</small></h1>
       <div id="status">불러오는 중...</div>
     </div>
     <div class="actions">
@@ -620,18 +620,26 @@ const NONE_RE = /^[\s.\-~/]*(없음|없습니다|없어요|없슴|없다|없네�
 const qv = (r, i) => { const v = String((r.x || [])[i] || '').trim(); return !v || NONE_RE.test(v) ? '' : v; };
 const qHas = r => qCols().some(c => qv(r, c.i));
 
+// 현재 선택(이벤트·필터·검색)된 명단에서 내용이 있는 질문 열만
+function relCols() {
+  const list = filtered();
+  const ev = evVal ? getEvCol() : '';
+  return shownX().filter(c => c.h !== ev && list.some(r => qv(r, c.i)));
+}
+
 $('#shareBtn').onclick = () => {
   if (!filtered().length) { alert('내보낼 명단이 없습니다.'); return; }
-  const has = shownX().length > 0;
+  const rc = relCols();
+  const has = rc.length > 0;
   $('#dlQ1').hidden = !has; $('#dlQ2').hidden = !has;
   document.querySelector('input[name="dlm"][value="roster"]').checked = true;
-  $('#dlColList').innerHTML = shownX().map(c => `<label class="crow"><input type="checkbox" data-i="${c.i}" checked> <span>${esc(c.h)}</span></label>`).join('');
+  $('#dlColList').innerHTML = rc.map(c => `<label class="crow"><input type="checkbox" data-i="${c.i}" checked> <span>${esc(c.h)}</span></label>`).join('');
   syncDl();
   $('#dlModal').hidden = false;
 };
 function syncDl() {
   const m = document.querySelector('input[name="dlm"]:checked').value;
-  $('#dlCols').hidden = m === 'roster' || !shownX().length;
+  $('#dlCols').hidden = m === 'roster' || !relCols().length;
 }
 document.querySelectorAll('input[name="dlm"]').forEach(i => i.onchange = syncDl);
 $('#dlCancel').onclick = () => { $('#dlModal').hidden = true; };
@@ -650,7 +658,7 @@ async function doShare(mode, pick) {
   const pay = isPay();
   const paidN = rows.filter(r => r.paid).length;
   const tn = curObj().name || '신청자';
-  const allSx = shownX();
+  const allSx = relCols();
   const sx = pick ? allSx.filter(c => pick.includes(c.i)) : allSx;
   const fn = t => t.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 30);
   const sub = (evVal ? '_' + fn(evVal) : '') + (mode !== 'roster' && sx.length < allSx.length ? '_' + fn(sx.map(c => c.h).join('+')) : '');
